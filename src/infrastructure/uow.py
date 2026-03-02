@@ -12,7 +12,7 @@ class AbstractUnitOfWork(abc.ABC):
     async def __aenter__(self):
         return self
 
-    async def _aexit__(self, *args):
+    async def __aexit__(self, *args):
         await self.rollback()
 
     async def commit(self):
