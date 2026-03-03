@@ -35,7 +35,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     async def __aenter__(self):
         self.session: AsyncSession = self.session_factory()
-        self.user_repo = repositories.UserRepository()
+        self.user_repo = repositories.UserRepository(session=self.session)
         return await super().__aenter__()
 
     async def __aexit__(self, *args):
@@ -47,3 +47,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     async def rollback(self):
         await self.session.rollback()
+
+
+def get_uow() -> AbstractUnitOfWork:
+    return SqlAlchemyUnitOfWork()
