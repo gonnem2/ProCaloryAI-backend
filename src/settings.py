@@ -1,4 +1,11 @@
-from pydantic import BaseSettings, Field, PostgresDsn
+import os
+
+from pydantic import Field, PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+environment = os.environ.get("PC_MODE", "dev")
+
+ENV_FILE_PATH = f".env.{environment}" if environment == "migration" else None
 
 
 class DBSettings(BaseSettings):
@@ -29,6 +36,11 @@ class DBSettings(BaseSettings):
 
 class AppSettings(BaseSettings):
     db_settings: DBSettings = DBSettings()
+
+    model_config = SettingsConfigDict(
+        env_file=ENV_FILE_PATH,
+        extra="ignore",
+    )
 
 
 settings = AppSettings()

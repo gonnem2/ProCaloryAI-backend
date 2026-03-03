@@ -1,3 +1,3 @@
-from user import UserRoles, User
+from .user import UserRoles, User
 
 __all__ = ["User", "UserRoles"]

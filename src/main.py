@@ -4,15 +4,16 @@ import uvicorn
 from src.api.router import router
 from src.infrastructure.database import orm
 
-orm.start_mappers()
 app = FastAPI()
 
 app.include_router(router)
 
 
 def main() -> None:
+    orm.start_mappers()
     uvicorn.run(
         "src.main:app",
+        host="0.0.0.0",
         reload=True,
         workers=1,
     )

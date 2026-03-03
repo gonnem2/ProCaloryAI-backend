@@ -1,11 +1,12 @@
 from sqlalchemy import MetaData, Table, Column, Integer, String, Enum, event
-from sqlalchemy.orm import mapper
+from sqlalchemy.orm import registry
 
 from src.domain.models.user import UserRoles
 from src.domain import models
 
 
 metadata = MetaData()
+mapper_registry = registry()
 
 
 users = Table(
@@ -22,7 +23,7 @@ users = Table(
 
 
 def start_mappers():
-    mapper(models.User, users)
+    mapper_registry.map_imperatively(models.User, users)
 
 
 @event.listens_for(models.User, "load")

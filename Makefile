@@ -1,2 +1,4 @@
 start:
-	uv run python -m src.main
+	docker compose up -d --build
+stop:
+	docker compose down
