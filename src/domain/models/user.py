@@ -1,8 +1,8 @@
 from enum import Enum
 
 from src.domain.events.base import DomainEvent
-from src.domain.events.user_events import UserPasswordChanged, UserRegistered
-from src.domain.value_object import Password
+from src.domain.events.user_events import UserPasswordChanged
+from src.domain.value_object.password import Password
 
 
 class UserRoles(Enum):
@@ -53,11 +53,6 @@ class User:
     def create(cls, username: str, email: str, raw_password: str) -> "User":
         """Фабричный метод — единственный способ создать пользователя"""
         user = cls(username=username, email=email, password=raw_password)
-        user.events.append(
-            UserRegistered(
-                email=email, username=username
-            )  # отправляем ивент о создании юзера
-        )
         return user
 
     def __repr__(self) -> str:

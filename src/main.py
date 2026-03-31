@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 import uvicorn
 
-from src.api.router import router
+from src.api.graphql.schema import graphql_router
 from src.infrastructure.database import orm
 
 app = FastAPI()
 
-app.include_router(router)
+app.include_router(graphql_router, prefix="/graphql")
 
 
 def main() -> None:

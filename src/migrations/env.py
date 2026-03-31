@@ -19,7 +19,7 @@ section = config.config_ini_section
 config.set_section_option(section, "PC_DB_HOST", settings.db_settings.db_host)
 config.set_section_option(section, "PC_DB_USERNAME", settings.db_settings.db_username)
 config.set_section_option(section, "PC_DB_PASSWORD", settings.db_settings.db_password)
-config.set_section_option(section, "PC_DB_PORT", str(settings.db_settings.db_port))
+config.set_section_option(section, "PC_DB_PORT", str(settings.db_settings.db_out_port))
 config.set_section_option(section, "PC_DB_NAME", settings.db_settings.db_name)
 
 
@@ -76,6 +76,8 @@ async def run_async_migrations() -> None:
     and associate a connection with the context.
 
     """
+    print("REAL URL:", config.get_main_option("sqlalchemy.url"))
+    print("SETTINGS DSN:", settings.db_settings.dsn)
 
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),

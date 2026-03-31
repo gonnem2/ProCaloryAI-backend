@@ -2,9 +2,7 @@
 Исключения сущности юезра
 """
 
-
-class DomainException(Exception):
-    """Базовое доменное исключение"""
+from src.domain.exceptions.base import DomainException
 
 
 class UserAlreadyExists(DomainException):

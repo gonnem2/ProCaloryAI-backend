@@ -27,6 +27,10 @@ class AbstractUnitOfWork(abc.ABC):
             events = entity.collect_events()  # тут будет список событий сущности
             await self._bus.handle_all(events)
 
+    async def publish_events(self) -> None:
+        """Только публикация — без commit. Для событий после коммита."""
+        await self._publish_events()
+
     @abc.abstractmethod
     async def _commit(self): ...
 
