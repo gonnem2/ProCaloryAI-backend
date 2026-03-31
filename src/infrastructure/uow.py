@@ -1,13 +1,13 @@
 import abc
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure import repositories
 from src.infrastructure.database.db import Session
+from src.application.handlers.messagebus import MessageBus, message_bus
 
 
 class AbstractUnitOfWork(abc.ABC):
-    user_repo: repositories.AbstractRepository
+    user_repo: repositories.UserRepository
 
     async def __aenter__(self):
         return self
@@ -15,23 +15,33 @@ class AbstractUnitOfWork(abc.ABC):
     async def __aexit__(self, *args):
         await self.rollback()
 
-    async def commit(self):
+    async def commit(self) -> None:
         await self._commit()
+        await self._publish_events()  # ← после commit, не до!
+
+    async def _publish_events(self) -> None:
+        """Собирает события со всех агрегатов и публикует в шину"""
+        for (
+            entity
+        ) in self.user_repo.seen:  # seen - это set из сущностей с которыми мы работали
+            events = entity.collect_events()  # тут будет список событий сущности
+            await self._bus.handle_all(events)
 
     @abc.abstractmethod
-    async def _commit(self):
-        raise NotImplementedError
+    async def _commit(self): ...
 
     @abc.abstractmethod
-    async def rollback(self):
-        raise NotImplementedError
+    async def rollback(self): ...
 
 
 class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
-    """Имплементированный абстрактный UoW"""
-
-    def __init__(self, session_factory=Session):
-        self.session_factory = session_factory  # асинхронная сессия
+    def __init__(
+        self,
+        session_factory=Session,
+        bus: MessageBus = message_bus,
+    ):
+        self.session_factory = session_factory
+        self._bus = bus
 
     async def __aenter__(self):
         self.session: AsyncSession = self.session_factory()

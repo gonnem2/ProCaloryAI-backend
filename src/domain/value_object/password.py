@@ -20,4 +20,5 @@ class Password:
 
     @classmethod
     def from_raw_password(cls, raw_password: str):
+        """Это фабрика для создания этого класса"""
         return cls(cls.__hash_password(raw_password))

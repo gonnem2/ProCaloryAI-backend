@@ -11,4 +11,5 @@ dependencies = [
     "fastapi[all]>=0.134.0",
     "ruff>=0.15.4",
     "sqlalchemy>=2.0.48",
+    "strawberry-graphql[fastapi]>=0.312.2",
 ]
