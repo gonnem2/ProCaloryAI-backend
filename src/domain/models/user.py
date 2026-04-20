@@ -6,8 +6,8 @@ from src.domain.value_object.password import Password
 
 
 class UserRoles(Enum):
-    user = "USER"
-    admin = "ADMIN"
+    user = "user"
+    admin = "admin"
 
 
 class User:

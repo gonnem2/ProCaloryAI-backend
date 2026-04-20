@@ -50,6 +50,11 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
     async def __aenter__(self):
         self.session: AsyncSession = self.session_factory()
         self.user_repo = repositories.UserRepository(session=self.session)
+        self.dish_repo = repositories.DishRepository(session=self.session)
+        self.meal_log_repo = repositories.MealLogRepository(session=self.session)
+        self.analysis_repo = repositories.AnalysisRequestRepository(
+            session=self.session
+        )
         return await super().__aenter__()
 
     async def __aexit__(self, *args):

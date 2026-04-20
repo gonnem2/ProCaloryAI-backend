@@ -56,6 +56,15 @@ class AppSettings(BaseSettings):
     SECRET_JWT_KEY: str = Field("secret", alias="SECRET_JWT_KEY")
     JWT_ALGORITHM: str = Field("HS256", alias="JWT_ALGORITHM")
 
+    # S3
+    S3_ENDPOINT_URL: str = "http://minio:9000"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET: str = "photos"
+
+    # Kafka
+    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
+
     db_settings: DBSettings = Field(default_factory=DBSettings)
 
     model_config = SettingsConfigDict(
