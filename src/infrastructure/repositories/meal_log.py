@@ -32,10 +32,6 @@ class MealLogRepository(AbstractRepository[MealLog]):
         if log:
             await self.session.delete(log)
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[MealLog]:
-        result = await self.session.execute(select(MealLog).offset(skip).limit(limit))
-        return list(result.scalars().all())
-
     async def get_by_user_and_date(
         self, user_id: int, target_date: date
     ) -> list[tuple[MealLog, Dish]]:
@@ -64,3 +60,7 @@ class MealLogRepository(AbstractRepository[MealLog]):
             self.seen.add(log)
 
         return [(log, dish) for log, dish in rows]
+
+    async def list(self, skip: int = 0, limit: int = 100) -> list[MealLog]:
+        result = await self.session.execute(select(MealLog).offset(skip).limit(limit))
+        return list(result.scalars().all())

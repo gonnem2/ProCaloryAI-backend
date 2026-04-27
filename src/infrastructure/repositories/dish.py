@@ -36,12 +36,14 @@ class DishRepository(AbstractRepository[Dish]):
         if dish:
             await self.session.delete(dish)
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[Dish]:
-        result = await self.session.execute(select(Dish).offset(skip).limit(limit))
-        return list(result.scalars().all())
-
     async def list_by_user(self, user_id: int) -> list[Dish]:
         result = await self.session.execute(
             select(Dish).where(Dish.created_by_user_id == user_id)
         )
         return list(result.scalars().all())
+
+
+    async def list(self, skip: int = 0, limit: int = 100) -> list[Dish]:
+        result = await self.session.execute(select(Dish).offset(skip).limit(limit))
+        return list(result.scalars().all())
+

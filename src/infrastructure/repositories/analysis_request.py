@@ -30,11 +30,7 @@ class AnalysisRequestRepository(AbstractRepository[AnalysisRequest]):
         if req:
             await self.session.delete(req)
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[AnalysisRequest]:
-        result = await self.session.execute(
-            select(AnalysisRequest).offset(skip).limit(limit)
-        )
-        return list(result.scalars().all())
+
 
     async def list_by_user(self, user_id: int) -> list[AnalysisRequest]:
         result = await self.session.execute(
@@ -50,5 +46,11 @@ class AnalysisRequestRepository(AbstractRepository[AnalysisRequest]):
             select(AnalysisRequest).where(
                 AnalysisRequest.status == AnalysisStatus.pending
             )
+        )
+        return list(result.scalars().all())
+
+    async def list(self, skip: int = 0, limit: int = 100) -> list[AnalysisRequest]:
+        result = await self.session.execute(
+            select(AnalysisRequest).offset(skip).limit(limit)
         )
         return list(result.scalars().all())
