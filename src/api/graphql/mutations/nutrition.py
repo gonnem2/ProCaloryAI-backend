@@ -116,7 +116,7 @@ class NutritionMutation:
         user = require_auth(info)
         async with handle_domain_errors():
             data = await AnalysisService(info.context["uow"]).request_upload_url(
-                user.id
+                user["id"]
             )
         return UploadUrlGQL(**data)
 
@@ -130,7 +130,7 @@ class NutritionMutation:
             data = await AnalysisService(
                 info.context["uow"]
             ).confirm_upload_and_analyze(
-                user_id=user.id,
+                user_id=user["id"],
                 request_id=request_id,
             )
         return AnalysisStatusGQL(request_id=data["request_id"], status=data["status"])

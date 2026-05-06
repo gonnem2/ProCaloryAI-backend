@@ -75,5 +75,6 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         await self.session.rollback()
 
 
-def get_uow() -> AbstractUnitOfWork:
-    return SqlAlchemyUnitOfWork()
+async def get_uow() -> AbstractUnitOfWork:
+    async with SqlAlchemyUnitOfWork() as uow:
+        yield uow

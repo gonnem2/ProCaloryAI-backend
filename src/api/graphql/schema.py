@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @strawberry.type
-class Mutation(AuthMutation, NutritionMutation):
+class Mutation(NutritionMutation, AuthMutation):
     pass
 
 

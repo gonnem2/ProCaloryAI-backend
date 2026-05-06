@@ -1,4 +1,3 @@
-# src/api/graphql/context.py
 from fastapi import Request, Depends
 from typing import Annotated
 

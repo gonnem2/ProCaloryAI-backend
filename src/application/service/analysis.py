@@ -27,10 +27,9 @@ class AnalysisService:
             expires_in=300,  # 5 минут на загрузку
         )
 
-        async with self.uow as uow:
-            request = AnalysisRequest.create(user_id=user_id, s3_key=s3_key)
-            await uow.analysis_repo.add(request)
-            await uow.commit()
+        request = AnalysisRequest.create(user_id=user_id, s3_key=s3_key)
+        await self.uow.analysis_repo.add(request)
+        await self.uow.commit()
 
         return {
             "request_id": request.id,
@@ -43,14 +42,13 @@ class AnalysisService:
         """
         Шаг 2: фронт подтверждает загрузку → отправляем задачу в Kafka.
         """
-        async with self.uow as uow:
-            request = await uow.analysis_repo.get(request_id)
-            if not request or request.user_id != user_id:
-                raise ValueError("Analysis request not found")
+        request = await self.uow.analysis_repo.get(request_id)
+        if not request or request.user_id != user_id:
+            raise ValueError("Analysis request not found")
 
-            request.mark_uploaded()
-            request.mark_processing()
-            await uow.commit()
+        request.mark_uploaded()
+        request.mark_processing()
+        await self.uow.commit()
 
         s3_url = s3_client.get_url(request.s3_key)
         await kafka_producer.send(
@@ -70,28 +68,27 @@ class AnalysisService:
         Колбэк Kafka consumer — приходит результат от AI Core.
         data: {request_id, dish_name, calories, protein, fat, carbs}
         """
-        async with self.uow as uow:
-            request = await uow.analysis_repo.get(data["request_id"])
-            if not request:
-                logger.warning("Unknown request_id: %s", data["request_id"])
-                return
+        request = await self.uow.analysis_repo.get(data["request_id"])
+        if not request:
+            logger.warning("Unknown request_id: %s", data["request_id"])
+            return
 
-            log = MealLog.create(
-                user_id=request.user_id,
-                name=data["dish_name"],
-                calories=data["calories"],
-                protein=data["protein"],
-                fat=data["fat"],
-                carbs=data["carbs"],
-                meal_type=MealType.snack,
-                source=MealSource.camera,
-                s3_key=request.s3_key,
-            )
-            await uow.meal_log_repo.add(log)
-            await uow.commit()
+        log = MealLog.create(
+            user_id=request.user_id,
+            name=data["dish_name"],
+            calories=data["calories"],
+            protein=data["protein"],
+            fat=data["fat"],
+            carbs=data["carbs"],
+            meal_type=MealType.snack,
+            source=MealSource.camera,
+            s3_key=request.s3_key,
+        )
+        await self.uow.meal_log_repo.add(log)
+        await self.uow.commit()
 
-            request.complete(meal_log_id=log.id, result=data)
-            await uow.commit()
+        request.complete(meal_log_id=log.id, result=data)
+        await self.uow.commit()
 
         logger.info(
             "Analysis completed: request_id=%s meal_log_id=%s", request.id, log.id

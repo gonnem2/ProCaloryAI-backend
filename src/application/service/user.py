@@ -65,30 +65,28 @@ class UserService:
     async def create_user(
         self, username: str, password: str, email: str
     ) -> tuple[str, str]:
-        async with self.uow as uow:
-            existing = await uow.user_repo.get_by_email(email)
-            if existing:
-                raise UserAlreadyExists(email)
+        existing = await self.uow.user_repo.get_by_email(email)
+        if existing:
+            raise UserAlreadyExists(email)
 
-            user = User.create(username=username, email=email, raw_password=password)
-            await uow.user_repo.add(user)
-            await uow.commit()
+        user = User.create(username=username, email=email, raw_password=password)
+        await self.uow.user_repo.add(user)
+        await self.uow.commit()
 
-            user.events.append(
-                UserRegistered(user_id=user.id, email=email, username=username)
-            )
-            await uow.publish_events()
+        user.events.append(
+            UserRegistered(user_id=user.id, email=email, username=username)
+        )
+        await self.uow.publish_events()
 
         return self.create_access_token(email), self.create_refresh_token(email)
 
     async def login(self, email: str, raw_password: str) -> tuple[str, str]:
-        async with self.uow as uow:
-            user = await uow.user_repo.get_by_email(email)
-            if not user or not user.verify_password(raw_password):
-                raise InvalidCredentials()
+        user = await self.uow.user_repo.get_by_email(email)
+        if not user or not user.verify_password(raw_password):
+            raise InvalidCredentials()
 
-            user.events.append(UserLoggedIn(user_id=user.id, email=user.email))
-            await uow.commit()
+        user.events.append(UserLoggedIn(user_id=user.id, email=user.email))
+        await self.uow.commit()
 
         return self.create_access_token(email), self.create_refresh_token(email)
 
@@ -98,18 +96,17 @@ class UserService:
         except jwt.InvalidTokenError:
             return None
 
-        async with self.uow as uow:
-            user = await uow.user_repo.get_by_email(email)
+        user = await self.uow.user_repo.get_by_email(email)
 
-            if not user:
-                return None
+        if not user:
+            return None
 
-            return {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "role": user.role.value,
-            }
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role.value,
+        }
 
     async def refresh(self, refresh_token: str) -> tuple[str, str]:
         try:
@@ -117,9 +114,8 @@ class UserService:
         except jwt.InvalidTokenError:
             raise InvalidCredentials()
 
-        async with self.uow as uow:
-            user = await uow.user_repo.get_by_email(email)
-            if not user:
-                raise InvalidCredentials()
+        user = await self.uow.user_repo.get_by_email(email)
+        if not user:
+            raise InvalidCredentials()
 
         return self.create_access_token(email), self.create_refresh_token(email)
