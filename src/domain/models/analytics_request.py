@@ -1,9 +1,13 @@
+# src/domain/models/analysis_request.py
 from datetime import datetime
 from enum import Enum
+from src.domain.events.base import DomainEvent
 
 
 class AnalysisStatus(Enum):
     pending = "pending"
+    uploaded = "uploaded"  # фронт загрузил в S3
+    processing = "processing"
     completed = "completed"
     failed = "failed"
 
@@ -14,18 +18,27 @@ class AnalysisRequest:
         self.user_id = user_id
         self.s3_key = s3_key
         self.status = AnalysisStatus.pending
-        self.dish_id: int | None = None
+        self.meal_log_id: int | None = None
+        self.result: dict | None = None
         self.created_at = datetime.now()
-        self.events = []
+        self.events: list[DomainEvent] = []
 
-    def complete(self, dish_id: int) -> None:
+    def mark_uploaded(self) -> None:
+        """Фронт подтвердил загрузку в S3"""
+        self.status = AnalysisStatus.uploaded
+
+    def mark_processing(self) -> None:
+        self.status = AnalysisStatus.processing
+
+    def complete(self, meal_log_id: int, result: dict) -> None:
         self.status = AnalysisStatus.completed
-        self.dish_id = dish_id
+        self.meal_log_id = meal_log_id
+        self.result = result
 
     def fail(self) -> None:
         self.status = AnalysisStatus.failed
 
-    def collect_events(self) -> list:
+    def collect_events(self) -> list[DomainEvent]:
         events, self.events = self.events, []
         return events
 

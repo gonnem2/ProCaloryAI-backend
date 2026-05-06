@@ -1,55 +1,85 @@
-# src/api/graphql/queries/nutrition.py
 import strawberry
 from strawberry.types import Info
 
-from src.api.graphql.types import DailyStatsGQL, NutritionGQL, MealLogGQL, DishGQL
+from src.api.graphql.types import (
+    UserGQL,
+    MealLogGQL,
+    NutritionGQL,
+    GoalGQL,
+    PreferencesGQL,
+    PrivacySettingsGQL,
+    AchievementsGQL,
+)
+from src.api.graphql.utils import require_auth, _goal_to_gql, _meal_log_to_gql
 from src.application.service.meal_log import MealLogService
+from src.application.service.goal import GoalService
+from src.application.service.profile import ProfileService
 
 
 @strawberry.type
-class NutritionQuery:
+class AppQuery:
     @strawberry.field
-    async def daily_stats(self, info: Info, date: str) -> DailyStatsGQL:
-        """КБЖУ за день. date: 'YYYY-MM-DD'"""
-        user = info.context.get("current_user")
-        if not user:
-            raise strawberry.exceptions.GraphQLError("Not authenticated")
+    async def me(self, info: Info) -> UserGQL:
+        user = require_auth(info)
+        data = await ProfileService(info.context["uow"]).get_profile(user.id)
+        return UserGQL(**data)
 
-        service = MealLogService(info.context["uow"])
-        logs_with_dishes = await service.get_daily_logs(user_id=user.id, date_str=date)
+    @strawberry.field
+    async def meals(
+        self, info: Info, skip: int = 0, limit: int = 50
+    ) -> list[MealLogGQL]:
+        user = require_auth(info)
+        logs = await MealLogService(info.context["uow"]).list_by_user(
+            user.id, skip, limit
+        )
+        return [_meal_log_to_gql(l) for l in logs]
 
-        meals = []
-        total = NutritionGQL(calories=0, protein=0, fat=0, carbs=0)
+    @strawberry.field
+    async def today_stats(self, info: Info) -> NutritionGQL:
+        user = require_auth(info)
+        stats = await MealLogService(info.context["uow"]).get_today_stats(user.id)
+        return NutritionGQL(
+            calories=stats["calories"],
+            protein=stats["protein"],
+            fat=stats["fat"],
+            carbs=stats["carbs"],
+        )
 
-        for log, dish in logs_with_dishes:
-            n = dish.nutrition_for_weight(log.weight_grams)
-            total.calories += n.calories
-            total.protein += n.protein
-            total.fat += n.fat
-            total.carbs += n.carbs
+    @strawberry.field
+    async def weekly_average(self, info: Info) -> NutritionGQL:
+        user = require_auth(info)
+        avg = await MealLogService(info.context["uow"]).get_weekly_average(user.id)
+        return NutritionGQL(**avg)
 
-            meals.append(
-                MealLogGQL(
-                    id=log.id,
-                    dish=DishGQL(
-                        id=dish.id,
-                        name=dish.name,
-                        nutrition_per_100g=NutritionGQL(
-                            calories=dish.calories_per_100g,
-                            protein=dish.protein_per_100g,
-                            fat=dish.fat_per_100g,
-                            carbs=dish.carbs_per_100g,
-                        ),
-                    ),
-                    weight_grams=log.weight_grams,
-                    nutrition_total=NutritionGQL(
-                        calories=n.calories,
-                        protein=n.protein,
-                        fat=n.fat,
-                        carbs=n.carbs,
-                    ),
-                    eaten_at=log.eaten_at,
-                )
-            )
+    @strawberry.field
+    async def goal(self, info: Info) -> GoalGQL | None:
+        user = require_auth(info)
+        data = await GoalService(info.context["uow"]).get_goal_with_progress(user.id)
+        return _goal_to_gql(data) if data else None
 
-        return DailyStatsGQL(date=date, total=total, meals=meals)
+    @strawberry.field
+    async def preferences(self, info: Info) -> PreferencesGQL:
+        user = require_auth(info)
+        prefs = await ProfileService(info.context["uow"]).get_preferences(user.id)
+        return PreferencesGQL(
+            diet_type=prefs.diet_type,
+            meals_per_day=prefs.meals_per_day,
+            water_goal_ml=prefs.water_goal_ml,
+            notifications_enabled=prefs.notifications_enabled,
+        )
+
+    @strawberry.field
+    async def privacy_settings(self, info: Info) -> PrivacySettingsGQL:
+        user = require_auth(info)
+        ps = await ProfileService(info.context["uow"]).get_privacy_settings(user.id)
+        return PrivacySettingsGQL(
+            analytics_enabled=ps.analytics_enabled,
+            crash_reports_enabled=ps.crash_reports_enabled,
+            personalization_enabled=ps.personalization_enabled,
+        )
+
+    @strawberry.field
+    async def achievements(self, info: Info) -> AchievementsGQL:
+        user = require_auth(info)
+        data = await ProfileService(info.context["uow"]).get_achievements(user.id)
+        return AchievementsGQL(**data)

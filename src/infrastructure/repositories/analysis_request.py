@@ -2,7 +2,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.models import AnalysisRequest, AnalysisStatus
+from src.domain.models import AnalysisRequest
 from src.infrastructure.repositories import AbstractRepository
 
 
@@ -12,10 +12,10 @@ class AnalysisRequestRepository(AbstractRepository[AnalysisRequest]):
         self.seen: set[AnalysisRequest] = set()
 
     async def get(self, entity_id: int) -> AnalysisRequest | None:
-        req = await self.session.get(AnalysisRequest, entity_id)
-        if req:
-            self.seen.add(req)
-        return req
+        r = await self.session.get(AnalysisRequest, entity_id)
+        if r:
+            self.seen.add(r)
+        return r
 
     async def add(self, entity: AnalysisRequest) -> None:
         self.session.add(entity)
@@ -26,26 +26,15 @@ class AnalysisRequestRepository(AbstractRepository[AnalysisRequest]):
         self.seen.add(entity)
 
     async def delete(self, entity_id: int) -> None:
-        req = await self.get(entity_id)
-        if req:
-            await self.session.delete(req)
-
-
+        r = await self.get(entity_id)
+        if r:
+            await self.session.delete(r)
 
     async def list_by_user(self, user_id: int) -> list[AnalysisRequest]:
         result = await self.session.execute(
             select(AnalysisRequest)
             .where(AnalysisRequest.user_id == user_id)
             .order_by(AnalysisRequest.created_at.desc())
-        )
-        return list(result.scalars().all())
-
-    async def list_pending(self) -> list[AnalysisRequest]:
-        """Для ретрая зависших запросов"""
-        result = await self.session.execute(
-            select(AnalysisRequest).where(
-                AnalysisRequest.status == AnalysisStatus.pending
-            )
         )
         return list(result.scalars().all())
 

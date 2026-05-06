@@ -12,9 +12,4 @@ class UserQuery:
         if user is None:
             raise strawberry.exceptions.GraphQLError("Not authenticated")
 
-        return UserGQL(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            role=user.role.value,
-        )
+        return UserGQL(**user)

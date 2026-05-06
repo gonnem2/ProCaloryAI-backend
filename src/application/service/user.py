@@ -92,14 +92,24 @@ class UserService:
 
         return self.create_access_token(email), self.create_refresh_token(email)
 
-    async def get_user_by_token(self, token: str) -> User | None:
+    async def get_user_by_token(self, token: str) -> dict | None:
         try:
             email = self.decode_token(token, expected_type="access")
         except jwt.InvalidTokenError:
             return None
 
         async with self.uow as uow:
-            return await uow.user_repo.get_by_email(email)
+            user = await uow.user_repo.get_by_email(email)
+
+            if not user:
+                return None
+
+            return {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role.value,
+            }
 
     async def refresh(self, refresh_token: str) -> tuple[str, str]:
         try:

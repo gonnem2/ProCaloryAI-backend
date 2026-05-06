@@ -8,6 +8,11 @@ from src.application.handlers.messagebus import MessageBus, message_bus
 
 class AbstractUnitOfWork(abc.ABC):
     user_repo: repositories.UserRepository
+    meal_log_repo: repositories.MealLogRepository
+    goal_repo: repositories.GoalRepository
+    preferences_repo: repositories.PreferencesRepository
+    privacy_repo: repositories.PrivacySettingsRepository
+    analysis_repo: repositories.AnalysisRequestRepository
 
     async def __aenter__(self):
         return self
@@ -17,19 +22,23 @@ class AbstractUnitOfWork(abc.ABC):
 
     async def commit(self) -> None:
         await self._commit()
-        await self._publish_events()  # ← после commit, не до!
-
-    async def _publish_events(self) -> None:
-        """Собирает события со всех агрегатов и публикует в шину"""
-        for (
-            entity
-        ) in self.user_repo.seen:  # seen - это set из сущностей с которыми мы работали
-            events = entity.collect_events()  # тут будет список событий сущности
-            await self._bus.handle_all(events)
+        await self._publish_events()
 
     async def publish_events(self) -> None:
-        """Только публикация — без commit. Для событий после коммита."""
         await self._publish_events()
+
+    async def _publish_events(self) -> None:
+        all_seen = [
+            *self.user_repo.seen,
+            *self.meal_log_repo.seen,
+            *self.goal_repo.seen,
+            *self.preferences_repo.seen,
+            *self.privacy_repo.seen,
+            *self.analysis_repo.seen,
+        ]
+        for entity in all_seen:
+            events = entity.collect_events()
+            await self._bus.handle_all(events)
 
     @abc.abstractmethod
     async def _commit(self): ...
@@ -39,19 +48,17 @@ class AbstractUnitOfWork(abc.ABC):
 
 
 class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
-    def __init__(
-        self,
-        session_factory=Session,
-        bus: MessageBus = message_bus,
-    ):
+    def __init__(self, session_factory=Session, bus: MessageBus = message_bus):
         self.session_factory = session_factory
         self._bus = bus
 
     async def __aenter__(self):
         self.session: AsyncSession = self.session_factory()
         self.user_repo = repositories.UserRepository(session=self.session)
-        self.dish_repo = repositories.DishRepository(session=self.session)
         self.meal_log_repo = repositories.MealLogRepository(session=self.session)
+        self.goal_repo = repositories.GoalRepository(session=self.session)
+        self.preferences_repo = repositories.PreferencesRepository(session=self.session)
+        self.privacy_repo = repositories.PrivacySettingsRepository(session=self.session)
         self.analysis_repo = repositories.AnalysisRequestRepository(
             session=self.session
         )

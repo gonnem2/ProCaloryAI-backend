@@ -1,6 +1,9 @@
 # src/infrastructure/kafka/producer.py
+import asyncio
 import json
 from aiokafka import AIOKafkaProducer
+from aiokafka.errors import KafkaConnectionError
+
 from src.settings import settings
 
 
@@ -13,7 +16,15 @@ class KafkaEventProducer:
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             value_serializer=lambda v: json.dumps(v).encode(),
         )
-        await self._producer.start()
+
+        while True:
+            try:
+                await self._producer.start()
+                break
+            except KafkaConnectionError:
+                await asyncio.sleep(5)
+            except Exception:
+                return
 
     async def stop(self):
         if self._producer:

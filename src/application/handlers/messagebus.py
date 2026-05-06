@@ -1,5 +1,20 @@
 from typing import Callable, Awaitable, Type
+
+from src.application.handlers.meal_handlers import (
+    OnMealLogAdded,
+    OnMealLogDeleted,
+    OnGoalCreated,
+    OnPhotoUploadRequested,
+    OnPhotoAnalysisConfirmed,
+)
 from src.domain.events.base import DomainEvent
+from src.domain.events.meal_events import (
+    MealLogAdded,
+    MealLogDeleted,
+    GoalCreated,
+    PhotoUploadRequested,
+    PhotoAnalysisConfirmed,
+)
 
 # тип хендлера
 Handler = Callable[[DomainEvent], Awaitable[None]]
@@ -57,6 +72,11 @@ def create_message_bus() -> MessageBus:
     bus.register(UserRegistered, OnUserRegistered().handle)
     bus.register(UserLoggedIn, OnUserLoggedIn().handle)
     bus.register(UserPasswordChanged, OnUserPasswordChanged().handle)
+    bus.register(MealLogAdded, OnMealLogAdded().handle)
+    bus.register(MealLogDeleted, OnMealLogDeleted().handle)
+    bus.register(GoalCreated, OnGoalCreated().handle)
+    bus.register(PhotoUploadRequested, OnPhotoUploadRequested().handle)
+    bus.register(PhotoAnalysisConfirmed, OnPhotoAnalysisConfirmed().handle)
     return bus
 
 

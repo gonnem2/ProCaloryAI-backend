@@ -1,32 +1,58 @@
-import base64
+import uuid
+import logging
 
-from src.domain.models import AnalysisRequest, NutritionPer100g, MealLog, Dish
+from src.domain.models import AnalysisRequest
+from src.domain.models.meal_log import MealLog, MealType, MealSource
+
 from src.infrastructure.external.kafka.producer import kafka_producer
 from src.infrastructure.external.s3.client import s3_client
 from src.infrastructure.uow import AbstractUnitOfWork
+
+logger = logging.getLogger(__name__)
 
 
 class AnalysisService:
     def __init__(self, uow: AbstractUnitOfWork):
         self.uow = uow
 
-    async def request_analysis(self, user_id: int, photo_base64: str) -> int:
+    async def request_upload_url(self, user_id: int) -> dict:
         """
-        1. Декодирует base64
-        2. Загружает в S3
-        3. Сохраняет AnalysisRequest
-        4. Публикует в Kafka
-        Возвращает request_id
+        Шаг 1: создаём AnalysisRequest, генерируем presigned PUT URL.
+        Фронт загружает фото напрямую в S3 по этому URL.
         """
-        photo_bytes = base64.b64decode(photo_base64)
-        s3_key = await s3_client.upload_photo(photo_bytes)
-        s3_url = s3_client.get_url(s3_key)
+        s3_key = f"photos/{user_id}/{uuid.uuid4()}.jpg"
+        presigned_url = await s3_client.get_presigned_url(
+            key=s3_key,
+            method="PUT",
+            expires_in=300,  # 5 минут на загрузку
+        )
 
         async with self.uow as uow:
             request = AnalysisRequest.create(user_id=user_id, s3_key=s3_key)
             await uow.analysis_repo.add(request)
             await uow.commit()
 
+        return {
+            "request_id": request.id,
+            "upload_url": presigned_url,
+            "s3_key": s3_key,
+            "expires_in": 300,
+        }
+
+    async def confirm_upload_and_analyze(self, user_id: int, request_id: int) -> dict:
+        """
+        Шаг 2: фронт подтверждает загрузку → отправляем задачу в Kafka.
+        """
+        async with self.uow as uow:
+            request = await uow.analysis_repo.get(request_id)
+            if not request or request.user_id != user_id:
+                raise ValueError("Analysis request not found")
+
+            request.mark_uploaded()
+            request.mark_processing()
+            await uow.commit()
+
+        s3_url = s3_client.get_url(request.s3_key)
         await kafka_producer.send(
             "photo.analysis.requested",
             {
@@ -36,39 +62,37 @@ class AnalysisService:
             },
         )
 
-        return request.id
+        logger.info("Analysis requested: request_id=%s user_id=%s", request.id, user_id)
+        return {"request_id": request.id, "status": "processing"}
 
     async def handle_analysis_result(self, data: dict) -> None:
         """
-        Колбэк Kafka consumer — создаёт Dish + MealLog
+        Колбэк Kafka consumer — приходит результат от AI Core.
         data: {request_id, dish_name, calories, protein, fat, carbs}
         """
         async with self.uow as uow:
-            analysis_req = await uow.analysis_repo.get(data["request_id"])
-            if not analysis_req:
+            request = await uow.analysis_repo.get(data["request_id"])
+            if not request:
+                logger.warning("Unknown request_id: %s", data["request_id"])
                 return
 
-            nutrition = NutritionPer100g(
-                calories=data["calories_per_100g"],
-                protein=data["protein_per_100g"],
-                fat=data["fat_per_100g"],
-                carbs=data["carbs_per_100g"],
-            )
-            dish = Dish.create(
+            log = MealLog.create(
+                user_id=request.user_id,
                 name=data["dish_name"],
-                nutrition=nutrition,
-                user_id=analysis_req.user_id,
+                calories=data["calories"],
+                protein=data["protein"],
+                fat=data["fat"],
+                carbs=data["carbs"],
+                meal_type=MealType.snack,
+                source=MealSource.camera,
+                s3_key=request.s3_key,
             )
-            await uow.dish_repo.add(dish)
+            await uow.meal_log_repo.add(log)
             await uow.commit()
 
-            # по умолчанию логируем 100г
-            meal_log = MealLog.create(
-                user_id=analysis_req.user_id,
-                dish_id=dish.id,
-                weight_grams=100.0,
-            )
-            await uow.meal_log_repo.add(meal_log)
-
-            analysis_req.complete(dish_id=dish.id)
+            request.complete(meal_log_id=log.id, result=data)
             await uow.commit()
+
+        logger.info(
+            "Analysis completed: request_id=%s meal_log_id=%s", request.id, log.id
+        )

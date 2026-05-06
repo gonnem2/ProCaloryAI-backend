@@ -1,7 +1,6 @@
 import abc
 from typing import Generic, TypeVar, Optional, List
 
-# TypeVar для сущности
 T = TypeVar("T")
 
 
