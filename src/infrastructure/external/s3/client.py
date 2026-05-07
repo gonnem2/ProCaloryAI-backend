@@ -81,7 +81,7 @@ class S3Client:
 
     async def download_bytes(self, key: str, bucket: str = None) -> bytes:
         """Скачивает файл целиком в память (только для маленьких файлов)."""
-        bucket = bucket or self.settings.bucket
+        bucket = bucket or self.settings.s3.bucket
         try:
             resp = await self._client.get_object(Bucket=bucket, Key=key)
             async with resp["Body"] as stream:
@@ -102,7 +102,7 @@ class S3Client:
         Генерирует presigned URL для временного доступа (например, для фронтенда).
         По умолчанию – на чтение (GET).
         """
-        bucket = bucket or self.settings.bucket
+        bucket = bucket or self.settings.s3.bucket
         client_method = "get_object" if method == "GET" else "put_object"
         try:
             url = await self._client.generate_presigned_url(
@@ -116,7 +116,7 @@ class S3Client:
             raise RuntimeError(f"Failed to generate presigned URL: {exc}") from exc
 
     async def delete_file(self, key: str, bucket: str = None) -> None:
-        bucket = bucket or self.settings.bucket
+        bucket = bucket or self.settings.s3.bucket
         try:
             await self._client.delete_object(Bucket=bucket, Key=key)
         except ClientError as exc:

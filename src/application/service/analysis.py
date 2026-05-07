@@ -50,7 +50,7 @@ class AnalysisService:
         request.mark_processing()
         await self.uow.commit()
 
-        s3_url = s3_client.get_url(request.s3_key)
+        s3_url = await s3_client.get_presigned_url(request.s3_key)
         await kafka_producer.send(
             "photo.analysis.requested",
             {

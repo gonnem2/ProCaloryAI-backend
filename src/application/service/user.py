@@ -9,6 +9,10 @@ from src.domain.models.user import User
 from src.infrastructure.uow import AbstractUnitOfWork
 from src.settings import settings
 
+from collections import namedtuple
+
+UserDTO = namedtuple("UserDTO", ["id", "username", "email", "role"])
+
 TokenType = Literal["access", "refresh"]
 
 _SECRET = settings.SECRET_JWT_KEY
@@ -90,7 +94,7 @@ class UserService:
 
         return self.create_access_token(email), self.create_refresh_token(email)
 
-    async def get_user_by_token(self, token: str) -> dict | None:
+    async def get_user_by_token(self, token: str) -> UserDTO | None:
         try:
             email = self.decode_token(token, expected_type="access")
         except jwt.InvalidTokenError:
@@ -101,12 +105,7 @@ class UserService:
         if not user:
             return None
 
-        return {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "role": user.role.value,
-        }
+        return UserDTO(user.id, user.username, user.email, user.role)
 
     async def refresh(self, refresh_token: str) -> tuple[str, str]:
         try:

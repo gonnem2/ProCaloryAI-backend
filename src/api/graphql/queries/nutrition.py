@@ -21,7 +21,7 @@ class AppQuery:
     @strawberry.field
     async def me(self, info: Info) -> UserGQL:
         user = require_auth(info)
-        data = await ProfileService(info.context["uow"]).get_profile(user["id"])
+        data = await ProfileService(info.context["uow"]).get_profile(user.id)
         return UserGQL(**data)
 
     @strawberry.field
@@ -37,7 +37,7 @@ class AppQuery:
     @strawberry.field
     async def today_stats(self, info: Info) -> NutritionGQL:
         user = require_auth(info)
-        stats = await MealLogService(info.context["uow"]).get_today_stats(user["id"])
+        stats = await MealLogService(info.context["uow"]).get_today_stats(user.id)
         return NutritionGQL(
             calories=stats["calories"],
             protein=stats["protein"],
@@ -48,25 +48,25 @@ class AppQuery:
     @strawberry.field
     async def weekly_average(self, info: Info) -> NutritionGQL:
         user = require_auth(info)
-        avg = await MealLogService(info.context["uow"]).get_weekly_average(user["id"])
+        avg = await MealLogService(info.context["uow"]).get_weekly_average(user.id)
         return NutritionGQL(**avg)
 
     @strawberry.field
     async def goal(self, info: Info) -> GoalGQL | None:
         user = require_auth(info)
-        data = await GoalService(info.context["uow"]).get_goal_with_progress(user["id"])
+        data = await GoalService(info.context["uow"]).get_goal_with_progress(user.id)
         return _goal_to_gql(data) if data else None
 
     @strawberry.field
     async def preferences(self, info: Info) -> PreferencesGQL:
         user = require_auth(info)
-        prefs = await ProfileService(info.context["uow"]).get_preferences(user["id"])
+        prefs = await ProfileService(info.context["uow"]).get_preferences(user.id)
         return PreferencesGQL(**prefs)
 
     @strawberry.field
     async def privacy_settings(self, info: Info) -> PrivacySettingsGQL:
         user = require_auth(info)
-        ps = await ProfileService(info.context["uow"]).get_privacy_settings(user["id"])
+        ps = await ProfileService(info.context["uow"]).get_privacy_settings(user.id)
         return PrivacySettingsGQL(
             **ps,
         )
@@ -74,5 +74,5 @@ class AppQuery:
     @strawberry.field
     async def achievements(self, info: Info) -> AchievementsGQL:
         user = require_auth(info)
-        data = await ProfileService(info.context["uow"]).get_achievements(user["id"])
+        data = await ProfileService(info.context["uow"]).get_achievements(user.id)
         return AchievementsGQL(**data)

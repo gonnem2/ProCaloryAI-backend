@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,7 +29,6 @@ class MealLogRepository(AbstractRepository[MealLog]):
         log = await self.get(entity_id)
         if log:
             await self.session.delete(log)
-
 
     async def list_by_user(
         self, user_id: int, skip: int = 0, limit: int = 50
@@ -76,8 +75,7 @@ class MealLogRepository(AbstractRepository[MealLog]):
             .where(
                 and_(
                     MealLog.user_id == user_id,
-                    MealLog.eaten_at
-                    >= func.now() - func.cast(f"{days} days", type_=None),
+                    MealLog.eaten_at >= func.now() - timedelta(days=days),
                 )
             )
             .group_by(cast(MealLog.eaten_at, Date))
@@ -138,7 +136,6 @@ class MealLogRepository(AbstractRepository[MealLog]):
             else:
                 break
         return streak
-
 
     async def list(self, skip: int = 0, limit: int = 100) -> list[MealLog]:
         result = await self.session.execute(select(MealLog).offset(skip).limit(limit))
