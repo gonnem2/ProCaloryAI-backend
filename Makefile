@@ -1,5 +1,7 @@
 start:
 	docker compose up -d --build
+init:
+	cp .env.example .env
 stop:
 	docker compose down
 
