@@ -10,6 +10,7 @@ from src.application.service.analysis import AnalysisService
 from src.infrastructure.database.orm import start_mappers
 from src.infrastructure.external.kafka.consumer import start_analysis_result_consumer
 from src.infrastructure.external.kafka.producer import kafka_producer
+from src.infrastructure.external.s3.callbacks import ensure_bucket_exists
 from src.infrastructure.external.s3.client import s3_client
 from src.infrastructure.uow import SqlAlchemyUnitOfWork
 
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
         start_analysis_result_consumer(service.handle_analysis_result)
     )
     await s3_client.start()
+    await ensure_bucket_exists()
     yield
     await s3_client.stop()
     consumer_task.cancel()
