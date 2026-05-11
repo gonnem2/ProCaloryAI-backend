@@ -9,6 +9,8 @@ from src.api.graphql.types import (
     PreferencesGQL,
     PrivacySettingsGQL,
     AchievementsGQL,
+    AnalysisStatusGQL,
+    AnalysisResultGQL,
 )
 from src.api.graphql.utils import require_auth, _goal_to_gql, _meal_log_to_gql
 from src.application.service.meal_log import MealLogService
@@ -76,3 +78,36 @@ class AppQuery:
         user = require_auth(info)
         data = await ProfileService(info.context["uow"]).get_achievements(user.id)
         return AchievementsGQL(**data)
+
+    # src/api/graphql/queries/nutrition.py
+
+    @strawberry.field
+    async def analysis_status(self, info: Info, request_id: int) -> AnalysisStatusGQL:
+        user = require_auth(info)
+
+        async with info.context["uow"] as uow:
+            request = await uow.analysis_repo.get(request_id)
+            if not request or request.user_id != user.id:
+                raise strawberry.exceptions.GraphQLError("Not found")
+
+            # ← читаем все поля пока сессия открыта
+            req_id = request.id
+            req_status = request.status.value
+            req_result = request.result  # dict | None
+
+        # Здесь сессия уже закрыта — используем только локальные переменные
+        result = None
+        if req_status == "completed" and req_result:
+            result = AnalysisResultGQL(
+                dish_name=req_result.get("dish_name", ""),
+                calories=req_result.get("calories", 0),
+                protein=req_result.get("protein", 0),
+                fat=req_result.get("fat", 0),
+                carbs=req_result.get("carbs", 0),
+            )
+
+        return AnalysisStatusGQL(
+            request_id=req_id,
+            status=req_status,
+            result=result,
+        )
