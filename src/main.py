@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 import uvicorn
+from starlette.responses import JSONResponse
 
 from src.api.graphql.schema import graphql_router
 from src.application.service.analysis import AnalysisService
@@ -32,6 +33,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/health")
+async def health():
+    return JSONResponse({"status": "ok"})
+
 
 app.include_router(graphql_router, prefix="/graphql")
 

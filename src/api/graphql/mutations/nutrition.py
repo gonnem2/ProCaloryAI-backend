@@ -47,10 +47,10 @@ class NutritionMutation:
         return _meal_log_to_gql(log)
 
     @strawberry.mutation
-    async def delete_meal_log(self, info: Info, log_id: int) -> bool:
+    async def delete_meal_log(self, info: Info, id: int) -> bool:
         user = require_auth(info)
         async with handle_domain_errors():
-            await MealLogService(info.context["uow"]).delete_meal_log(user.id, log_id)
+            await MealLogService(info.context["uow"]).delete_meal_log(user.id, id)
         return True
 
     @strawberry.mutation

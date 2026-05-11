@@ -121,6 +121,7 @@ class AddMealLogInput:
     carbs: float
     meal_type: str
     eaten_at: Optional[datetime] = None
+    source: str = "manual"  # ← добавить
 
 
 @strawberry.input

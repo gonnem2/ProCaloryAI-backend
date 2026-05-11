@@ -30,7 +30,7 @@ class AppQuery:
     ) -> list[MealLogGQL]:
         user = require_auth(info)
         logs = await MealLogService(info.context["uow"]).list_by_user(
-            user["id"], skip, limit
+            user.id, skip, limit
         )
         return [_meal_log_to_gql(l) for l in logs]
 

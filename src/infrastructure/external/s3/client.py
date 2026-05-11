@@ -91,19 +91,17 @@ class S3Client:
                 return None
             raise
 
+    # src/infrastructure/s3/client.py
     async def get_presigned_url(
         self,
         key: str,
-        method: str = "get_object",
+        method: str = "GET",
         expires_in: int = 3600,
         bucket: str = None,
     ) -> str:
-        """
-        Генерирует presigned URL для временного доступа (например, для фронтенда).
-        По умолчанию – на чтение (GET).
-        """
         bucket = bucket or self.settings.s3.bucket
-        client_method = "get_object" if method == "GET" else "put_object"
+        client_method = "put_object" if method == "PUT" else "get_object"
+
         try:
             url = await self._client.generate_presigned_url(
                 ClientMethod=client_method,
@@ -111,9 +109,18 @@ class S3Client:
                 ExpiresIn=expires_in,
                 HttpMethod=method,
             )
+            # ← заменяем внутренний Docker-хост на публичный
+            # чтобы Android-клиент мог достучаться напрямую
+            url = url.replace(
+                self.settings.s3.endpoint_url,
+                self.settings.s3.public_url,
+            )
             return url
         except ClientError as exc:
             raise RuntimeError(f"Failed to generate presigned URL: {exc}") from exc
+
+    def get_url(self, s3_key: str) -> str:
+        return f"{self.settings.s3.public_url}/{self.settings.s3.bucket}/{s3_key}"
 
     async def delete_file(self, key: str, bucket: str = None) -> None:
         bucket = bucket or self.settings.s3.bucket

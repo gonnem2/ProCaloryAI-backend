@@ -41,6 +41,7 @@ class DBSettings(BaseSettings):
 
 class S3Settings(BaseSettings):
     endpoint_url: str = "http://minio:9000"
+    public_url: str = "http://10.0.2.2:9000"  # снаружи — для Android-эмулятора
     access_key: str = "minioadmin"
     secret_key: str = "minioadmin"
     bucket: str = "photos"
