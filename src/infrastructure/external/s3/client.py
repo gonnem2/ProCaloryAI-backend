@@ -109,6 +109,21 @@ class S3Client:
             HttpMethod="PUT",
         )
 
+    async def get_internal_presigned_url(
+            self, key: str, expires_in: int = 3600, bucket=None,
+    ) -> str:
+        """
+        Presigned GET URL для AI Core.
+        Подписан для minio:9000 — AI Core достучится напрямую внутри Docker.
+        """
+        bucket = bucket or settings.s3.bucket
+        return await self._internal.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=expires_in,
+            HttpMethod="GET",
+        )
+
     def get_public_url(self, s3_key: str) -> str:
         """
         Публичная ссылка на файл для AI Core (Colab).

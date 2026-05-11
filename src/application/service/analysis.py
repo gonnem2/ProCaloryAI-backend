@@ -56,7 +56,7 @@ class AnalysisService:
 
         # Публичный URL для AI Core (Colab) — не presigned, просто ссылка
         # AI Core скачает фото по этому URL для анализа
-        public_s3_url = s3_client.get_public_url(request.s3_key)
+        public_s3_url = s3_client.get_internal_presigned_url(request.s3_key)
 
         await kafka_producer.send(
             "photo.analysis.requested",
