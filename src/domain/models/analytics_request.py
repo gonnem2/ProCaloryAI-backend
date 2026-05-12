@@ -30,7 +30,7 @@ class AnalysisRequest:
     def mark_processing(self) -> None:
         self.status = AnalysisStatus.processing
 
-    def complete(self, meal_log_id: int, result: dict) -> None:
+    def complete(self, meal_log_id: int | None, result: dict) -> None:
         self.status = AnalysisStatus.completed
         self.meal_log_id = meal_log_id
         self.result = result

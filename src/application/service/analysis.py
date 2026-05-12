@@ -2,7 +2,6 @@ import uuid
 import logging
 
 from src.domain.models import AnalysisRequest
-from src.domain.models.meal_log import MealLog, MealType, MealSource
 from src.infrastructure.external.kafka.producer import kafka_producer
 from src.infrastructure.external.s3.client import s3_client
 from src.infrastructure.uow import AbstractUnitOfWork
@@ -77,8 +76,8 @@ class AnalysisService:
 
     async def handle_analysis_result(self, data: dict) -> None:
         """
-        Колбэк Kafka consumer — приходит результат от AI Core.
-        data: {request_id, dish_name, calories, protein, fat, carbs}
+        Колбэк Kafka consumer — сохраняем результат в AnalysisRequest.
+        MealLog НЕ создаём — пользователь сам подтвердит через addMealLog().
         """
         async with self.uow as uow:
             request = await uow.analysis_repo.get(data["request_id"])
@@ -86,25 +85,51 @@ class AnalysisService:
                 logger.warning("Unknown request_id: %s", data["request_id"])
                 return
 
-            log = MealLog.create(
-                user_id=request.user_id,
-                name=data["dish_name"],
-                calories=data["calories"],
-                protein=data["protein"],
-                fat=data["fat"],
-                carbs=data["carbs"],
-                meal_type=MealType.snack,
-                source=MealSource.camera,
-                s3_key=request.s3_key,
+            # Сохраняем только результат — без создания MealLog
+            request.complete(
+                meal_log_id=None,  # ← не привязываем к MealLog
+                result={
+                    "dish_name": data.get("dish_name", ""),
+                    "calories": data.get("calories", 0),
+                    "protein": data.get("protein", 0),
+                    "fat": data.get("fat", 0),
+                    "carbs": data.get("carbs", 0),
+                },
             )
-            await uow.meal_log_repo.add(log)
             await uow.commit()
 
-            request.complete(meal_log_id=log.id, result=data)
-            await uow.commit()
+        logger.info("Analysis result saved: request_id=%s", data["request_id"])
 
-        logger.info(
-            "Analysis completed: request_id=%s meal_log_id=%s",
-            request.id,
-            log.id,
-        )
+    # async def handle_analysis_result(self, data: dict) -> None:
+    #     """
+    #     Колбэк Kafka consumer — приходит результат от AI Core.
+    #     data: {request_id, dish_name, calories, protein, fat, carbs}
+    #     """
+    #     async with self.uow as uow:
+    #         request = await uow.analysis_repo.get(data["request_id"])
+    #         if not request:
+    #             logger.warning("Unknown request_id: %s", data["request_id"])
+    #             return
+    #
+    #         log = MealLog.create(
+    #             user_id=request.user_id,
+    #             name=data["dish_name"],
+    #             calories=data["calories"],
+    #             protein=data["protein"],
+    #             fat=data["fat"],
+    #             carbs=data["carbs"],
+    #             meal_type=MealType.snack,
+    #             source=MealSource.camera,
+    #             s3_key=request.s3_key,
+    #         )
+    #         await uow.meal_log_repo.add(log)
+    #         await uow.commit()
+    #
+    #         request.complete(meal_log_id=log.id, result=data)
+    #         await uow.commit()
+    #
+    #     logger.info(
+    #         "Analysis completed: request_id=%s meal_log_id=%s",
+    #         request.id,
+    #         log.id,
+    #     )
