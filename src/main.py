@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
 from starlette.responses import JSONResponse
+# TEST
 
 from src.api.graphql.schema import graphql_router
 from src.application.service.analysis import AnalysisService
