@@ -223,3 +223,6 @@ minio_data/
 .env.*
 !.env.example
 tmp/
+
+# Local report exports
+output/
