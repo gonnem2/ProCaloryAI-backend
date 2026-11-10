@@ -1,0 +1,70 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam dpi 140
+skinparam ArrowColor #394655
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam classBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Основные сущности ProCaloryAI
+hide methods
+skinparam classAttributeIconSize 0
+class "Пользователь User" as U {
+ id : int
+ username : string
+ email : string
+ hashed_password : string
+ created_at : datetime
+}
+class "Запись питания MealLog" as M {
+ id : int
+ user_id : int
+ name : string
+ calories : float
+ protein : float
+ fat : float
+ carbs : float
+ meal_type : MealType
+ source : MealSource
+ eaten_at : datetime
+}
+class "Цель Goal" as G {
+ id : int
+ user_id : int
+ goal_type : GoalType
+ target_kg : float
+ current_weight_kg : float
+ daily_calories : float
+ created_at : datetime
+}
+class "Предпочтения Preferences" as P {
+ id : int
+ user_id : int
+ diet_type : string
+ meals_per_day : int
+ water_goal_ml : int
+ notifications_enabled : bool
+}
+class "Запрос анализа AnalysisRequest" as A {
+ id : int
+ user_id : int
+ s3_key : string
+ status : AnalysisStatus
+ meal_log_id : int [0..1]
+ result : JSON [0..1]
+ created_at : datetime
+}
+U "1" -- "0..*" M : ведёт
+U "1" -- "0..1" G : задаёт
+U "1" -- "0..1" P : сохраняет
+U "1" -- "0..*" A : отправляет
+A "0..1" -- "0..1" M : результат — план
+note bottom of A
+Одна результирующая запись на запрос —
+целевой инвариант будущего фотоанализа.
+Уникальность в БД требует доработки.
+end note
+@enduml

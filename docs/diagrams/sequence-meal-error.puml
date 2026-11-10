@@ -1,0 +1,31 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam dpi 140
+skinparam ArrowColor #394655
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam classBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Ручная запись с ошибкой US-3 и FR-3
+actor "Пользователь" as U
+participant "GraphQL API" as A
+participant "MealLogService" as S
+database "PostgreSQL" as D
+U -> A : addMealLog(input), access
+A -> A : Проверить авторизацию
+A -> S : add_meal_log(user_id, input)
+S -> S : Проверить название, тип и КБЖУ
+alt calories = -1
+ S --> A : DomainException
+ A --> U : errors: КБЖУ должны быть конечными\nнеотрицательными числами
+ note over S,D : INSERT и commit не выполняются.
+else Корректные данные 250 / 8 / 5 / 42
+ S -> D : INSERT MealLog, COMMIT
+ D --> S : Назначенный id и данные
+ S --> A : Запись manual
+ A --> U : data.addMealLog
+end
+@enduml
