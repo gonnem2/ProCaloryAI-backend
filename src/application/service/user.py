@@ -1,17 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import jwt
+import re
 
 from src.domain.events.user_events import UserLoggedIn, UserRegistered
 from src.domain.exceptions.user import InvalidCredentials, UserAlreadyExists
+from src.domain.exceptions.base import DomainException
 from src.domain.models.user import User
 from src.infrastructure.uow import AbstractUnitOfWork
 from src.settings import settings
-
-from collections import namedtuple
-
-UserDTO = namedtuple("UserDTO", ["id", "username", "email", "role"])
 
 TokenType = Literal["access", "refresh"]
 
@@ -33,7 +31,7 @@ class UserService:
             {
                 "sub": subject,
                 "type": token_type,  # ← refresh нельзя использовать как access
-                "exp": datetime.now() + expires_delta,
+                "exp": datetime.now(timezone.utc) + expires_delta,
             },
             _SECRET,
             algorithm=_ALGORITHM,
@@ -69,6 +67,13 @@ class UserService:
     async def create_user(
         self, username: str, password: str, email: str
     ) -> tuple[str, str]:
+        username, email = username.strip(), email.strip().lower()
+        if not 1 <= len(username) <= 255:
+            raise DomainException("Имя должно содержать от 1 до 255 символов")
+        if len(email) > 255 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+            raise DomainException("Некорректная электронная почта")
+        if not 8 <= len(password.encode("utf-8")) <= 72:
+            raise DomainException("Пароль должен содержать от 8 до 72 байт UTF-8")
         existing = await self.uow.user_repo.get_by_email(email)
         if existing:
             raise UserAlreadyExists(email)
@@ -85,7 +90,7 @@ class UserService:
         return self.create_access_token(email), self.create_refresh_token(email)
 
     async def login(self, email: str, raw_password: str) -> tuple[str, str]:
-        user = await self.uow.user_repo.get_by_email(email)
+        user = await self.uow.user_repo.get_by_email(email.strip().lower())
         if not user or not user.verify_password(raw_password):
             raise InvalidCredentials()
 
@@ -94,7 +99,7 @@ class UserService:
 
         return self.create_access_token(email), self.create_refresh_token(email)
 
-    async def get_user_by_token(self, token: str) -> UserDTO | None:
+    async def get_user_by_token(self, token: str) -> dict | None:
         try:
             email = self.decode_token(token, expected_type="access")
         except jwt.InvalidTokenError:
@@ -105,7 +110,12 @@ class UserService:
         if not user:
             return None
 
-        return UserDTO(user.id, user.username, user.email, user.role)
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role.value,
+        }
 
     async def refresh(self, refresh_token: str) -> tuple[str, str]:
         try:

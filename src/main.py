@@ -1,57 +1,59 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
+from sqlalchemy import text
 import uvicorn
-from starlette.responses import JSONResponse
-# TEST
 
 from src.api.graphql.schema import graphql_router
-from src.application.service.analysis import AnalysisService
+from src.infrastructure.database.db import Session, async_engine
 from src.infrastructure.database.orm import start_mappers
-from src.infrastructure.external.kafka.consumer import start_analysis_result_consumer
-from src.infrastructure.external.kafka.producer import kafka_producer
-from src.infrastructure.external.s3.callbacks import ensure_bucket_exists
-from src.infrastructure.external.s3.client import s3_client
-from src.infrastructure.uow import SqlAlchemyUnitOfWork
+from src.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_mappers()
-    await kafka_producer.start()
+    consumer_task = None
+    if settings.PHOTOS_ENABLED:
+        from src.application.service.analysis import AnalysisService
+        from src.infrastructure.external.kafka.consumer import start_analysis_result_consumer
+        from src.infrastructure.external.kafka.producer import kafka_producer
+        from src.infrastructure.external.s3.client import s3_client
+        from src.infrastructure.uow import SqlAlchemyUnitOfWork
 
-    # запускаем consumer в фоне
-    uow = SqlAlchemyUnitOfWork()
-    service = AnalysisService(uow)
-    consumer_task = asyncio.create_task(
-        start_analysis_result_consumer(service.handle_analysis_result)
-    )
-    await s3_client.start()
-    await ensure_bucket_exists()
-    yield
-    await s3_client.stop()
-    consumer_task.cancel()
-    await kafka_producer.stop()
+        async def handle_result(data):
+            async with SqlAlchemyUnitOfWork() as uow:
+                await AnalysisService(uow).handle_analysis_result(data)
+
+        await s3_client.start()
+        await kafka_producer.start()
+        consumer_task = asyncio.create_task(start_analysis_result_consumer(handle_result))
+    try:
+        yield
+    finally:
+        if consumer_task is not None:
+            consumer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await consumer_task
+            await kafka_producer.stop()
+            await s3_client.stop()
+        await async_engine.dispose()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(title="ProCaloryAI", lifespan=lifespan)
+app.include_router(graphql_router, prefix="/graphql")
 
 
 @app.get("/health")
 async def health():
-    return JSONResponse({"status": "ok"})
-
-
-app.include_router(graphql_router, prefix="/graphql")
+    async with Session() as session:
+        await session.execute(text("SELECT 1"))
+    return {"status": "ok", "database": "ok", "photos_enabled": settings.PHOTOS_ENABLED}
 
 
 def main() -> None:
-    uvicorn.run(
-        "src.main:app",
-        host="0.0.0.0",
-        workers=1,
-    )
+    uvicorn.run("src.main:app", host="0.0.0.0", workers=1)
 
 
 if __name__ == "__main__":

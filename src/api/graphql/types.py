@@ -16,22 +16,6 @@ class UserGQL:
 
 
 @strawberry.type
-class AnalysisResultGQL:
-    dish_name: str
-    calories: float
-    protein: float
-    fat: float
-    carbs: float
-
-
-@strawberry.type
-class AnalysisStatusGQL:
-    request_id: int
-    status: str
-    result: Optional[AnalysisResultGQL] = None
-
-
-@strawberry.type
 class AuthPayload:
     access_token: str
     refresh_token: str
@@ -101,6 +85,12 @@ class UploadUrlGQL:
     expires_in: int
 
 
+@strawberry.type
+class AnalysisStatusGQL:
+    request_id: int
+    status: str
+
+
 # --- Inputs ---
 
 
@@ -131,7 +121,6 @@ class AddMealLogInput:
     carbs: float
     meal_type: str
     eaten_at: Optional[datetime] = None
-    source: str = "manual"  # ← добавить
 
 
 @strawberry.input

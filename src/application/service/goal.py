@@ -1,3 +1,5 @@
+from math import isfinite
+from src.domain.exceptions.base import DomainException
 from src.domain.models.goal import Goal, GoalType
 from src.infrastructure.uow import AbstractUnitOfWork
 
@@ -17,6 +19,17 @@ class GoalService:
         current_weight_kg: float,
         daily_calories: float,
     ) -> Goal:
+        if isinstance(goal_type, str):
+            try:
+                goal_type = GoalType(goal_type)
+            except ValueError:
+                raise DomainException("Неизвестный тип цели")
+        if goal_type != GoalType.loss:
+            raise DomainException("Пока поддерживается только цель снижения веса")
+        if any(not isfinite(v) or v <= 0 for v in (target_kg, current_weight_kg, daily_calories)):
+            raise DomainException("Параметры цели должны быть конечными положительными числами")
+        if target_kg >= current_weight_kg:
+            raise DomainException("Снижение веса должно быть меньше текущего веса")
         existing = await self.uow.goal_repo.get_by_user(user_id)
         if existing:
             existing.goal_type = goal_type
@@ -45,7 +58,7 @@ class GoalService:
 
         # считаем суммарный дефицит калорий
         daily_totals = await self.uow.meal_log_repo.get_daily_totals_last_n_days(
-            user_id, days=365
+            user_id, since=goal.created_at
         )
         total_deficit = sum(goal.daily_calories - d["calories"] for d in daily_totals)
         progress = goal.calculate_progress(total_deficit)

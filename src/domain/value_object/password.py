@@ -9,8 +9,10 @@ class Password:
     hashed_password: str
 
     def verify_password(self, password: str) -> bool:
+        if len(password.encode("utf-8")) > 72:
+            return False
         return checkpw(
-            password.encode("ascii"),
+            password.encode("utf-8"),
             self.hashed_password.encode("ascii"),
         )
 

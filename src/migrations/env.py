@@ -76,8 +76,6 @@ async def run_async_migrations() -> None:
     and associate a connection with the context.
 
     """
-    print("REAL URL:", config.get_main_option("sqlalchemy.url"))
-    print("SETTINGS DSN:", settings.db_settings.dsn)
 
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),

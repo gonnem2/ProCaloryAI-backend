@@ -42,5 +42,5 @@ class AuthMutation:
         from src.application.service.profile import ProfileService
 
         async with handle_domain_errors():
-            await ProfileService(info.context["uow"]).delete_account(user.id)
+            await ProfileService(info.context["uow"]).delete_account(user["id"])
         return True

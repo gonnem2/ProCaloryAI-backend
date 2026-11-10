@@ -9,8 +9,6 @@ from src.api.graphql.types import (
     PreferencesGQL,
     PrivacySettingsGQL,
     AchievementsGQL,
-    AnalysisStatusGQL,
-    AnalysisResultGQL,
 )
 from src.api.graphql.utils import require_auth, _goal_to_gql, _meal_log_to_gql
 from src.application.service.meal_log import MealLogService
@@ -23,7 +21,7 @@ class AppQuery:
     @strawberry.field
     async def me(self, info: Info) -> UserGQL:
         user = require_auth(info)
-        data = await ProfileService(info.context["uow"]).get_profile(user.id)
+        data = await ProfileService(info.context["uow"]).get_profile(user["id"])
         return UserGQL(**data)
 
     @strawberry.field
@@ -32,14 +30,14 @@ class AppQuery:
     ) -> list[MealLogGQL]:
         user = require_auth(info)
         logs = await MealLogService(info.context["uow"]).list_by_user(
-            user.id, skip, limit
+            user["id"], skip, limit
         )
         return [_meal_log_to_gql(l) for l in logs]
 
     @strawberry.field
     async def today_stats(self, info: Info) -> NutritionGQL:
         user = require_auth(info)
-        stats = await MealLogService(info.context["uow"]).get_today_stats(user.id)
+        stats = await MealLogService(info.context["uow"]).get_today_stats(user["id"])
         return NutritionGQL(
             calories=stats["calories"],
             protein=stats["protein"],
@@ -50,25 +48,25 @@ class AppQuery:
     @strawberry.field
     async def weekly_average(self, info: Info) -> NutritionGQL:
         user = require_auth(info)
-        avg = await MealLogService(info.context["uow"]).get_weekly_average(user.id)
+        avg = await MealLogService(info.context["uow"]).get_weekly_average(user["id"])
         return NutritionGQL(**avg)
 
     @strawberry.field
     async def goal(self, info: Info) -> GoalGQL | None:
         user = require_auth(info)
-        data = await GoalService(info.context["uow"]).get_goal_with_progress(user.id)
+        data = await GoalService(info.context["uow"]).get_goal_with_progress(user["id"])
         return _goal_to_gql(data) if data else None
 
     @strawberry.field
     async def preferences(self, info: Info) -> PreferencesGQL:
         user = require_auth(info)
-        prefs = await ProfileService(info.context["uow"]).get_preferences(user.id)
+        prefs = await ProfileService(info.context["uow"]).get_preferences(user["id"])
         return PreferencesGQL(**prefs)
 
     @strawberry.field
     async def privacy_settings(self, info: Info) -> PrivacySettingsGQL:
         user = require_auth(info)
-        ps = await ProfileService(info.context["uow"]).get_privacy_settings(user.id)
+        ps = await ProfileService(info.context["uow"]).get_privacy_settings(user["id"])
         return PrivacySettingsGQL(
             **ps,
         )
@@ -76,38 +74,5 @@ class AppQuery:
     @strawberry.field
     async def achievements(self, info: Info) -> AchievementsGQL:
         user = require_auth(info)
-        data = await ProfileService(info.context["uow"]).get_achievements(user.id)
+        data = await ProfileService(info.context["uow"]).get_achievements(user["id"])
         return AchievementsGQL(**data)
-
-    # src/api/graphql/queries/nutrition.py
-
-    @strawberry.field
-    async def analysis_status(self, info: Info, request_id: int) -> AnalysisStatusGQL:
-        user = require_auth(info)
-
-        async with info.context["uow"] as uow:
-            request = await uow.analysis_repo.get(request_id)
-            if not request or request.user_id != user.id:
-                raise strawberry.exceptions.GraphQLError("Not found")
-
-            # ← читаем все поля пока сессия открыта
-            req_id = request.id
-            req_status = request.status.value
-            req_result = request.result  # dict | None
-
-        # Здесь сессия уже закрыта — используем только локальные переменные
-        result = None
-        if req_status == "completed" and req_result:
-            result = AnalysisResultGQL(
-                dish_name=req_result.get("dish_name", ""),
-                calories=req_result.get("calories", 0),
-                protein=req_result.get("protein", 0),
-                fat=req_result.get("fat", 0),
-                carbs=req_result.get("carbs", 0),
-            )
-
-        return AnalysisStatusGQL(
-            request_id=req_id,
-            status=req_status,
-            result=result,
-        )

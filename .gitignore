@@ -214,3 +214,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Local service data and macOS metadata
+postgres_data/
+minio_data/
+.DS_Store
+
+# Private environment variants; retain the safe example
+.env.*
+!.env.example
+tmp/
+
+# Local report exports
+output/
