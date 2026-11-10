@@ -1,0 +1,37 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 15
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam dpi 150
+skinparam ArrowColor #384452
+skinparam classBackgroundColor #F4F6F8
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Контекст ProCaloryAI
+top to bottom direction
+actor "Пользователь\nГость или владелец аккаунта" as User
+rectangle "Граница ProCaloryAI backend" {
+ rectangle "GraphQL API\nFR-1–FR-10" as API
+ rectangle "Прикладные сервисы" as Service
+ API --> Service
+}
+database "PostgreSQL\nДанные дневника" as DB
+cloud "MinIO\nВнешнее S3 хранилище" as S3
+queue "Kafka\nВнешний брокер" as K
+rectangle "AI Core\nВнешний обработчик\nили учебный эмулятор" as AI
+User --> API : GraphQL и access-токен
+Service --> DB : SQL и транзакции
+Service --> S3 : Выдача PUT-ссылки
+User --> S3 : PUT фотографии
+Service --> K : photo.analysis.requested
+K --> AI : Запрос анализа
+AI --> K : photo.analysis.completed
+K --> Service : Результат анализа
+note bottom of AI
+Код AI Core отсутствует в проекте.
+Контракт интеграции требует доработки.
+end note
+@enduml
