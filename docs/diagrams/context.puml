@@ -1,0 +1,33 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam dpi 140
+skinparam ArrowColor #394655
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam classBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Контекст ProCaloryAI
+actor "Пользователь" as U
+rectangle "ProCaloryAI backend\nGraphQL API и дневник" as B
+database "PostgreSQL\nЛичные данные" as D
+rectangle "MinIO\nФото — по плану" as S
+queue "Kafka\nПо плану" as K
+rectangle "AI Core\nВнешняя система\nКод отсутствует" as AI
+U --> B : FR-1–FR-10
+B --> D : Дневник и настройки
+B ..> S : FR-8\nСсылка на фото
+U ..> S : FR-8\nЗагрузка JPEG
+B ..> K : FR-8\nЗапрос анализа
+K ..> AI : Фото на анализ
+AI ..> K : Результат
+K ..> B : КБЖУ и request_id
+note bottom of B
+Сплошные связи — текущий дневник.
+Пунктир — планируемый фотоанализ.
+При PHOTOS_ENABLED=false нужны
+только backend и PostgreSQL.
+end note
+@enduml

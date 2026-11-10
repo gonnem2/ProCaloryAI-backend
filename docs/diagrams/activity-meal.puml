@@ -1,0 +1,47 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam dpi 140
+skinparam ArrowColor #394655
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam classBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Добавление питания US-3 и US-8
+start
+:Войти в аккаунт;
+if (Способ добавления?) then (вручную)
+ :Ввести название, тип и КБЖУ;
+ if (Данные корректны?) then (да)
+  :Сохранить запись manual;
+ else (нет)
+  :Показать ошибку;
+  :Не менять дневник;
+  stop
+ endif
+else (по фото — план)
+ :Получить PUT-ссылку;
+ :Загрузить JPEG и подтвердить;
+ if (Владелец и файл проверены?) then (да)
+  :Передать запрос внешнему Core;
+  if (Результат корректен?) then (да)
+   :Создать одну запись camera;
+   :Завершить запрос анализа;
+  else (нет)
+   :Статус failed без записи;
+   stop
+  endif
+ else (нет)
+  :Вернуть ошибку без отправки;
+  stop
+ endif
+endif
+:Прочитать дневник и итоги дня;
+stop
+note right
+US-3 реализован.
+US-8 — план, Core отсутствует.
+end note
+@enduml

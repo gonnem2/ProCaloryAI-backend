@@ -1,0 +1,34 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam dpi 140
+skinparam ArrowColor #394655
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam classBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Жизненный цикл AnalysisRequest US-8 и FR-8
+[*] --> pending : requestPhotoUpload
+pending --> uploaded : Подтверждена загрузка
+uploaded --> processing : Запрос отправлен на обработку
+processing --> completed : Корректный результат\n/ одна запись camera
+processing --> failed : Ошибка обработки\n/ без новой записи
+uploaded --> failed : Невосстановимая ошибка отправки
+completed --> completed : Повтор результата\n/ без дубликата
+completed --> [*]
+failed --> [*]
+note right of pending
+Запланировано: при ошибке файла
+или владельца вернуть ошибку,
+оставить pending без отправки.
+end note
+note bottom of processing
+Планируемая модель.
+Статусы есть в коде; защиты переходов,
+идемпотентность и обработка failed ещё нужны.
+Сейчас uploaded устанавливается
+перед processing до одного commit.
+end note
+@enduml

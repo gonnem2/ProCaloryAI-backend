@@ -1,0 +1,36 @@
+@startuml
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam dpi 140
+skinparam ArrowColor #394655
+skinparam rectangleBackgroundColor #F4F6F8
+skinparam classBackgroundColor #F4F6F8
+skinparam usecaseBackgroundColor #F4F6F8
+title Успешный вход US-2 и FR-2
+actor "Пользователь" as U
+participant "GraphQL API" as A
+participant "UserService" as S
+database "PostgreSQL" as D
+U -> A : login(email, password)
+A -> S : login(email, raw_password)
+S -> D : Найти пользователя по email
+D --> S : Пользователь с bcrypt-хешем
+S -> S : Проверить пароль
+S -> S : Выпустить access и refresh
+S --> A : Пара JWT
+A --> U : accessToken, refreshToken, bearer
+U -> A : me с access-токеном
+A -> S : get_user_by_token(access)
+S -> S : Проверить подпись, срок и type=access
+S -> D : Прочитать пользователя
+D --> S : Пользователь
+S --> A : Текущий пользователь
+A --> U : Личный профиль без пароля
+note over U,D
+Пример: andrey.lab@example.org / StudyPass2026!
+Access — 30 минут, refresh — 7 дней по текущим настройкам.
+end note
+@enduml
