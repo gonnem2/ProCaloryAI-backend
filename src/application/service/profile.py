@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.domain.exceptions.base import DomainException
 
 from src.domain.exceptions.user import UserNotFound
 from src.domain.models.preferences import Preferences
@@ -49,6 +50,15 @@ class ProfileService:
         )
 
     async def update_preferences(self, user_id: int, **kwargs) -> Preferences:
+        diet = kwargs.get("diet_type")
+        meals = kwargs.get("meals_per_day")
+        water = kwargs.get("water_goal_ml")
+        if diet is not None and not 1 <= len(diet.strip()) <= 64:
+            raise DomainException("Тип питания должен содержать от 1 до 64 символов")
+        if meals is not None and not 1 <= meals <= 10:
+            raise DomainException("Число приёмов пищи должно быть от 1 до 10")
+        if water is not None and not 0 <= water <= 10000:
+            raise DomainException("Цель воды должна быть от 0 до 10000 мл")
         prefs = await self.uow.preferences_repo.get_by_user(user_id)
         if not prefs:
             prefs = Preferences.create_default(user_id)

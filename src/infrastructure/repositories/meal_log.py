@@ -30,6 +30,7 @@ class MealLogRepository(AbstractRepository[MealLog]):
         if log:
             await self.session.delete(log)
 
+
     async def list_by_user(
         self, user_id: int, skip: int = 0, limit: int = 50
     ) -> list[MealLog]:
@@ -59,11 +60,13 @@ class MealLogRepository(AbstractRepository[MealLog]):
         return list(result.scalars().all())
 
     async def get_daily_totals_last_n_days(
-        self, user_id: int, days: int = 7
+        self, user_id: int, days: int = 7, since: datetime | None = None
     ) -> list[dict]:
-        """Агрегированные КБЖУ по дням за последние N дней"""
         from sqlalchemy import cast, Date
 
+        today = date.today()
+        start = since or datetime.combine(today - timedelta(days=days - 1), datetime.min.time())
+        end = datetime.combine(today + timedelta(days=1), datetime.min.time())
         result = await self.session.execute(
             select(
                 cast(MealLog.eaten_at, Date).label("day"),
@@ -72,25 +75,12 @@ class MealLogRepository(AbstractRepository[MealLog]):
                 func.sum(MealLog.fat).label("fat"),
                 func.sum(MealLog.carbs).label("carbs"),
             )
-            .where(
-                and_(
-                    MealLog.user_id == user_id,
-                    MealLog.eaten_at >= func.now() - timedelta(days=days),
-                )
-            )
+            .where(MealLog.user_id == user_id, MealLog.eaten_at >= start, MealLog.eaten_at < end)
             .group_by(cast(MealLog.eaten_at, Date))
             .order_by(cast(MealLog.eaten_at, Date))
         )
-        return [
-            {
-                "day": str(row.day),
-                "calories": row.calories or 0,
-                "protein": row.protein or 0,
-                "fat": row.fat or 0,
-                "carbs": row.carbs or 0,
-            }
-            for row in result.all()
-        ]
+        return [dict(day=str(r.day), calories=r.calories or 0, protein=r.protein or 0,
+                     fat=r.fat or 0, carbs=r.carbs or 0) for r in result.all()]
 
     async def count_by_user(self, user_id: int) -> int:
         result = await self.session.execute(
@@ -136,6 +126,7 @@ class MealLogRepository(AbstractRepository[MealLog]):
             else:
                 break
         return streak
+
 
     async def list(self, skip: int = 0, limit: int = 100) -> list[MealLog]:
         result = await self.session.execute(select(MealLog).offset(skip).limit(limit))

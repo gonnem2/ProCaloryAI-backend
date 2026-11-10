@@ -25,6 +25,8 @@ from src.application.service.goal import GoalService
 from src.application.service.profile import ProfileService
 from src.application.service.analysis import AnalysisService
 from src.domain.models.meal_log import MealType, MealSource
+from src.domain.exceptions.base import DomainException
+from src.settings import settings
 
 
 @strawberry.type
@@ -34,41 +36,40 @@ class NutritionMutation:
         user = require_auth(info)
         async with handle_domain_errors():
             log = await MealLogService(info.context["uow"]).add_meal_log(
-                user_id=user.id,
+                user_id=user["id"],
                 name=input.name,
                 calories=input.calories,
                 protein=input.protein,
                 fat=input.fat,
                 carbs=input.carbs,
-                meal_type=MealType[input.meal_type],
+                meal_type=input.meal_type,
                 source=MealSource.manual,
                 eaten_at=input.eaten_at,
             )
         return _meal_log_to_gql(log)
 
     @strawberry.mutation
-    async def delete_meal_log(self, info: Info, id: int) -> bool:
+    async def delete_meal_log(self, info: Info, log_id: int) -> bool:
         user = require_auth(info)
         async with handle_domain_errors():
-            await MealLogService(info.context["uow"]).delete_meal_log(user.id, id)
+            await MealLogService(info.context["uow"]).delete_meal_log(user["id"], log_id)
         return True
 
     @strawberry.mutation
     async def upsert_goal(self, info: Info, input: GoalInput) -> GoalGQL:
         user = require_auth(info)
-        from src.domain.models.goal import GoalType
 
         async with handle_domain_errors():
             result = await GoalService(info.context["uow"]).upsert_goal(
-                user_id=user.id,
-                goal_type=GoalType[input.goal_type],
+                user_id=user["id"],
+                goal_type=input.goal_type,
                 target_kg=input.target_kg,
                 current_weight_kg=input.current_weight_kg,
                 daily_calories=input.daily_calories,
             )
             # пересчитываем прогресс
             data = await GoalService(info.context["uow"]).get_goal_with_progress(
-                user.id
+                user["id"]
             )
         return _goal_to_gql(data)
 
@@ -79,7 +80,7 @@ class NutritionMutation:
         user = require_auth(info)
         async with handle_domain_errors():
             prefs = await ProfileService(info.context["uow"]).update_preferences(
-                user_id=user.id,
+                user_id=user["id"],
                 diet_type=input.diet_type,
                 meals_per_day=input.meals_per_day,
                 water_goal_ml=input.water_goal_ml,
@@ -99,7 +100,7 @@ class NutritionMutation:
         user = require_auth(info)
         async with handle_domain_errors():
             ps = await ProfileService(info.context["uow"]).update_privacy_settings(
-                user_id=user.id,
+                user_id=user["id"],
                 analytics_enabled=input.analytics_enabled,
                 crash_reports_enabled=input.crash_reports_enabled,
                 personalization_enabled=input.personalization_enabled,
@@ -115,8 +116,10 @@ class NutritionMutation:
         """Шаг 1: получить presigned URL для загрузки фото напрямую в S3"""
         user = require_auth(info)
         async with handle_domain_errors():
+            if not settings.PHOTOS_ENABLED:
+                raise DomainException("Фотоанализ пока недоступен: внешний AI Core не подключён")
             data = await AnalysisService(info.context["uow"]).request_upload_url(
-                user.id
+                user["id"]
             )
         return UploadUrlGQL(**data)
 
@@ -127,10 +130,12 @@ class NutritionMutation:
         """Шаг 2: фронт загрузил фото → запускаем анализ"""
         user = require_auth(info)
         async with handle_domain_errors():
+            if not settings.PHOTOS_ENABLED:
+                raise DomainException("Фотоанализ пока недоступен: внешний AI Core не подключён")
             data = await AnalysisService(
                 info.context["uow"]
             ).confirm_upload_and_analyze(
-                user_id=user.id,
+                user_id=user["id"],
                 request_id=request_id,
             )
         return AnalysisStatusGQL(request_id=data["request_id"], status=data["status"])

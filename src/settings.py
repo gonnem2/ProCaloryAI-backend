@@ -4,7 +4,6 @@ from pydantic import Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 environment = os.environ.get("PC_MODE", "dev")
-print(environment)
 ENV_FILE_PATH = f".env.{environment}" if environment == "migration" else None
 
 
@@ -41,7 +40,6 @@ class DBSettings(BaseSettings):
 
 class S3Settings(BaseSettings):
     endpoint_url: str = "http://minio:9000"
-    public_url: str = "http://10.0.2.2:9000"  # снаружи — для Android-эмулятора
     access_key: str = "minioadmin"
     secret_key: str = "minioadmin"
     bucket: str = "photos"
@@ -59,6 +57,8 @@ class S3Settings(BaseSettings):
 
 
 class AppSettings(BaseSettings):
+    # The manual diary works independently of the unfinished external AI Core.
+    PHOTOS_ENABLED: bool = False
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         30,
         alias="ACCESS_TOKEN_EXPIRE_MINUTES",

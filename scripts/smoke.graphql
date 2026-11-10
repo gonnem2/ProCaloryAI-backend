@@ -1,0 +1,12 @@
+# Выполнять операции по одной. Для register используйте новую почту.
+mutation Register {
+  register(input:{username:"student",email:"lab.student@example.org",password:"StudyPass2026!"}) {accessToken refreshToken}
+}
+# В Headers: {"Authorization":"Bearer <accessToken>"}
+mutation AddMeal {
+  addMealLog(input:{name:"Овсяная каша",calories:250,protein:8,fat:5,carbs:42,mealType:"breakfast"}) {id name nutrition{calories protein fat carbs}}
+}
+query CheckDiary {
+  meals {id name source nutrition{calories protein fat carbs}}
+  todayStats {calories protein fat carbs}
+}

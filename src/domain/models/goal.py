@@ -35,7 +35,7 @@ class Goal:
         if self.target_kg == 0:
             return 0.0
         kg_changed = total_calorie_deficit / 7700
-        return round(min(kg_changed / self.target_kg * 100, 100.0), 2)
+        return round(min(max(kg_changed / self.target_kg * 100, 0.0), 100.0), 2)
 
     def collect_events(self) -> list[DomainEvent]:
         events, self.events = self.events, []
